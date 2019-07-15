@@ -1,4 +1,4 @@
-//package doubly_linked_list
+package doubly_linked_list;
 
 class DLLTest {
   public static void main(String[] args) {

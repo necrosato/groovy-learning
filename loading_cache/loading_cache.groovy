@@ -1,4 +1,7 @@
-import DoublyLinkedList
+//package doubly_linked_list;
+//import doubly_linked_list.DoublyLinkedList;
+//import doubly_linked_list.DLLNode;
+import doubly_linked_list.*
 
 class LoadingCacheTest {
   static void main(String[] args) {
