@@ -1,5 +1,5 @@
 class Foo {
-  def toString() {
+  public String toString() {
     return "Foo!";
   }
 }

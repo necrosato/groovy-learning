@@ -8,6 +8,7 @@ class DLLTest {
     TestDeleteTail();
     TestDeleteHeadTail();
     TestMoveToHead();
+    TestMoveToHeadSingle();
   }
 
   public static void TestInsert() {
@@ -84,10 +85,18 @@ class DLLTest {
     assert(dll.Head().GetNext().GetVal() == "hello");
     assert(dll.Tail().GetVal() == "world");
   }
+
+  public static void TestMoveToHeadSingle() {
+    def dll = new DoublyLinkedList<String>();
+    dll.Insert("hello");
+    dll.MoveToHead(dll.Tail());
+    assert(dll.Head().GetVal() == "hello");
+    assert(dll.Tail().GetVal() == "hello");
+  }
 }
 
 /**
-  Node in a doubly linked list
+  Node in a doubly linked list.
 */
 class DLLNode<T> {
   private DLLNode<T> prev;
@@ -145,11 +154,16 @@ class DoublyLinkedList<T> {
     return tail;
   }
 
+  /**
+  Create a node for val and insert it on the tail of the DLL.
+  */
   public void Insert(T val) {
     if (head == null && tail == null) {
       head = new DLLNode(null, null, val);
       tail = head;
     } else {
+      assert head != null;
+      assert tail != null;
       def NewNode = new DLLNode<T>(tail, null, val);
       tail.SetNext(NewNode);
       tail = NewNode;
@@ -157,6 +171,9 @@ class DoublyLinkedList<T> {
     size++;
   }
   
+  /**
+  Delete a given node from the DLL.
+  */
   public void Delete(DLLNode<T> toDelete) {
     def toDeletePrev = toDelete.GetPrev();
     def toDeleteNext = toDelete.GetNext();
@@ -178,20 +195,31 @@ class DoublyLinkedList<T> {
     }
   }
 
+  /**
+  Move a node in the DLL to the head of the list.
+  */
   public void MoveToHead(DLLNode<T> node) {
-    Delete(node);
-    node.SetNext(head);
-    if (head != null) {
-      head.SetPrev(node);
+    if (head == node) {
+      return
     }
+    Delete(node);
+    size++;
+    node.SetNext(head);
+    head.SetPrev(node);
     head = node;
   }
 
+  /**
+  Insert a value at the head of the list.
+  */
   public void InsertHead(T val) {
     Insert(val);
     MoveToHead(tail);
   }
 
+  /**
+  The current size of the DLL.
+  */
   public int Size() {
     return size;
   }
