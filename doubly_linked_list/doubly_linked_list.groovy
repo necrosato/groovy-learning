@@ -96,17 +96,27 @@ class DLLTest {
 }
 
 /**
-  Node in a doubly linked list.
-*/
+ * Node in a doubly linked list.
+ */
 class DLLNode<T> {
   private DLLNode<T> prev;
   private DLLNode<T> next;
   private T val;
+  private int dll_id;
 
-  DLLNode(DLLNode<T> prev, DLLNode<T> next, T val) {
-    this.prev = prev;
-    this.next = next;
+  /**
+   * Constructor:
+   * Params:
+   *  prev: The previous node
+   *  next: The next node
+   *  val: The value of the node to be constructed
+   *  dll_id: The numeric id of the DoublyLinkedList instance this node is a part of
+   */
+  DLLNode(DLLNode<T> prev, DLLNode<T> next, T val, int dll_id) {
+    this.dll_id = dll_id;
     this.val = val;
+    SetPrev(prev);
+    SetNext(next);
   }
 
   public DLLNode<T> GetPrev() {
@@ -114,6 +124,9 @@ class DLLNode<T> {
   }
 
   public void SetPrev(DLLNode<T> prev) {
+    if (prev != null) {
+      assert(prev.GetID() == dll_id);
+    }
     this.prev = prev;
   }
 
@@ -122,6 +135,9 @@ class DLLNode<T> {
   }
 
   public void SetNext(DLLNode<T> next) {
+    if (next != null) {
+      assert(next.GetID() == dll_id);
+    }
     this.next = next;
   }
 
@@ -133,18 +149,31 @@ class DLLNode<T> {
     this.val = val;
   }
 
+  public int GetID() {
+    return dll_id;
+  }
+
   public String toString() {
     return val.toString();
   }
 }
 
 /**
-  Implementation of a generic DoublyLinkedList
-*/
+ * Implementation of a generic DoublyLinkedList
+ */
 class DoublyLinkedList<T> {
+  // The id of the next DoublyLinkedList will be set to this value, then next_id will be incremented.
+  static int next_id = 0;
   private DLLNode<T> head;
   private DLLNode<T> tail;
   private int size = 0;
+  // Unique identifier of this DLL. All DLLNode instances that are a part of this DLL will have the same unique ID.
+  private int id;
+
+  public DoublyLinkedList() {
+    this.id = DoublyLinkedList.next_id;
+    DoublyLinkedList.next_id++;
+  }
 
   public DLLNode<T> Head() {
     return head;
@@ -155,16 +184,16 @@ class DoublyLinkedList<T> {
   }
 
   /**
-  Create a node for val and insert it on the tail of the DLL.
-  */
+   * Create a node for val and insert it on the tail of the DLL.
+   */
   public void Insert(T val) {
     if (head == null && tail == null) {
-      head = new DLLNode(null, null, val);
+      head = new DLLNode(null, null, val, id);
       tail = head;
     } else {
       assert head != null;
       assert tail != null;
-      def NewNode = new DLLNode<T>(tail, null, val);
+      def NewNode = new DLLNode<T>(tail, null, val, id);
       tail.SetNext(NewNode);
       tail = NewNode;
     }
@@ -172,9 +201,10 @@ class DoublyLinkedList<T> {
   }
   
   /**
-  Delete a given node from the DLL.
-  */
+   * Delete a given node from the DLL.
+   */
   public void Delete(DLLNode<T> toDelete) {
+    assert (toDelete.GetID() == id);
     def toDeletePrev = toDelete.GetPrev();
     def toDeleteNext = toDelete.GetNext();
     if (toDeletePrev != null) {
@@ -196,9 +226,10 @@ class DoublyLinkedList<T> {
   }
 
   /**
-  Move a node in the DLL to the head of the list.
-  */
+   * Move a node in the DLL to the head of the list.
+   */
   public void MoveToHead(DLLNode<T> node) {
+    assert (node.GetID() == id);
     if (head == node) {
       return
     }
@@ -210,17 +241,21 @@ class DoublyLinkedList<T> {
   }
 
   /**
-  Insert a value at the head of the list.
-  */
+   * Insert a value at the head of the list.
+   */
   public void InsertHead(T val) {
     Insert(val);
     MoveToHead(tail);
   }
 
   /**
-  The current size of the DLL.
-  */
+   * The current size of the DLL.
+   */
   public int Size() {
     return size;
+  }
+
+  public int GetID() {
+    return id;
   }
 }
