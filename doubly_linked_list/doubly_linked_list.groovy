@@ -9,6 +9,7 @@ class DLLTest {
     TestDeleteHeadTail();
     TestMoveToHead();
     TestMoveToHeadSingle();
+    TestConcurrentDLLCreate();
   }
 
   public static void TestInsert() {
@@ -93,6 +94,22 @@ class DLLTest {
     assert(dll.Head().GetVal() == "hello");
     assert(dll.Tail().GetVal() == "hello");
   }
+
+  static class ConcurrentDLLCreate implements Runnable {
+    //TODO
+    ConcurrentDLLCreate(Set
+    @Override
+    public void run() {
+      def dll = new DoublyLinkedList<Integer>();
+    }
+  }
+
+  public static void TestConcurrentDLLCreate() {
+    for (int i = 0; i < 8; i++) {
+      def dll_thread = new Thread(new ConcurrentDLLCreate());
+      dll_thread.start();
+    }
+  }
 }
 
 /**
@@ -164,6 +181,7 @@ class DLLNode<T> {
 class DoublyLinkedList<T> {
   // The id of the next DoublyLinkedList will be set to this value, then next_id will be incremented.
   static int next_id = 0;
+  static Object id_mutex = new Object();
   private DLLNode<T> head;
   private DLLNode<T> tail;
   private int size = 0;
@@ -171,8 +189,10 @@ class DoublyLinkedList<T> {
   private int id;
 
   public DoublyLinkedList() {
-    this.id = DoublyLinkedList.next_id;
-    DoublyLinkedList.next_id++;
+    synchronized(id_mutex) {
+      this.id = DoublyLinkedList.next_id;
+      DoublyLinkedList.next_id++;
+    }
   }
 
   public DLLNode<T> Head() {
