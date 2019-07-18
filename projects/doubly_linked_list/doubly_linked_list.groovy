@@ -2,6 +2,9 @@ package doubly_linked_list;
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+/**
+ * Unit tests for DoublyLinkedList
+ */
 class DLLTest {
   public static void main(String[] args) {
     TestInsert();
@@ -101,14 +104,12 @@ class DLLTest {
 
   public static void TestConcurrentDLLCreate() {
     def es = Executors.newCachedThreadPool();
-    def id_set = new HashSet<Integer>();
+    def id_set = Collections.synchronizedSet(new HashSet<Integer>());
     for (int i = 0; i < 8; i++) {
       es.execute(new Runnable() { @Override
                                   public void run() {
                                     def dll = new DoublyLinkedList<Integer>();
-                                    synchronized(id_set) {
-                                      assert(id_set.add(dll.GetID()) == true);
-                                    }
+                                    assert(id_set.add(dll.GetID()) == true);
                                   }});
     }
     es.shutdown();
