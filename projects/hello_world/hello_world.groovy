@@ -1,4 +1,5 @@
-import Foo;
+package hello_world;
+import hello_world.Foo;
 
 class Test {
   static void main(String[] args) {

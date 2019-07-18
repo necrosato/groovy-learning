@@ -1,4 +1,6 @@
 package doubly_linked_list;
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class DLLTest {
   public static void main(String[] args) {
@@ -10,6 +12,8 @@ class DLLTest {
     TestMoveToHead();
     TestMoveToHeadSingle();
     TestConcurrentDLLCreate();
+    TestConcurrentDLLInsert();
+    TestConcurrentDLLDelete();
   }
 
   public static void TestInsert() {
@@ -95,25 +99,62 @@ class DLLTest {
     assert(dll.Tail().GetVal() == "hello");
   }
 
-  static class ConcurrentDLLCreate implements Runnable {
-    //TODO
-    ConcurrentDLLCreate(Set
-    @Override
-    public void run() {
-      def dll = new DoublyLinkedList<Integer>();
+  public static void TestConcurrentDLLCreate() {
+    def es = Executors.newCachedThreadPool();
+    def id_set = new HashSet<Integer>();
+    for (int i = 0; i < 8; i++) {
+      es.execute(new Runnable() { @Override
+                                  public void run() {
+                                    def dll = new DoublyLinkedList<Integer>();
+                                    synchronized(id_set) {
+                                      assert(id_set.add(dll.GetID()) == true);
+                                    }
+                                  }});
     }
+    es.shutdown();
+    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
   }
 
-  public static void TestConcurrentDLLCreate() {
+  public static void TestConcurrentDLLInsert() {
+    def es = Executors.newCachedThreadPool();
+    def val_set = new HashSet<Integer>();
+    def c = { node -> assert(val_set.add(node.GetVal()) == true); };
+    def dll = new DoublyLinkedList<Integer>();
     for (int i = 0; i < 8; i++) {
-      def dll_thread = new Thread(new ConcurrentDLLCreate());
-      dll_thread.start();
+      es.execute(new Runnable() { @Override
+                                  public void run() {
+                                    dll.Insert(Thread.currentThread().getId());
+                                  }});
     }
+    es.shutdown();
+    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
+    assert(dll.Size() == 8);
+    dll.walk(c);
+  }
+
+  public static void TestConcurrentDLLDelete() {
+    def es = Executors.newCachedThreadPool();
+    def val_set = new HashSet<Integer>();
+    def c = { node -> assert(val_set.add(node.GetVal()) == true); };
+    def dll = new DoublyLinkedList<Integer>();
+    for (int i = 0; i < 8; i++) {
+      dll.Insert(i);
+    }
+    for (int i = 0; i < 8; i++) {
+      es.execute(new Runnable() { @Override
+                                  public void run() {
+                                    dll.Delete(dll.Head());
+                                  }});
+    }
+    es.shutdown();
+    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
+    assert(dll.Size() == 0);
   }
 }
 
 /**
  * Node in a doubly linked list.
+ * These nodes are thread safe.
  */
 class DLLNode<T> {
   private DLLNode<T> prev;
@@ -136,47 +177,47 @@ class DLLNode<T> {
     SetNext(next);
   }
 
-  public DLLNode<T> GetPrev() {
+  public synchronized DLLNode<T> GetPrev() {
     return prev;
   }
 
-  public void SetPrev(DLLNode<T> prev) {
+  public synchronized void SetPrev(DLLNode<T> prev) {
     if (prev != null) {
       assert(prev.GetID() == dll_id);
     }
     this.prev = prev;
   }
 
-  public DLLNode<T> GetNext() {
+  public synchronized DLLNode<T> GetNext() {
     return next;
   }
 
-  public void SetNext(DLLNode<T> next) {
+  public synchronized void SetNext(DLLNode<T> next) {
     if (next != null) {
       assert(next.GetID() == dll_id);
     }
     this.next = next;
   }
 
-  public T GetVal() {
+  public synchronized T GetVal() {
     return val;
   }
 
-  public void SetVal(DLLNode<T> val) {
+  public synchronized void SetVal(DLLNode<T> val) {
     this.val = val;
   }
 
-  public int GetID() {
+  public synchronized int GetID() {
     return dll_id;
   }
 
-  public String toString() {
+  public synchronized String toString() {
     return val.toString();
   }
 }
 
 /**
- * Implementation of a generic DoublyLinkedList
+ * Implementation of a thread safe DoublyLinkedList.
  */
 class DoublyLinkedList<T> {
   // The id of the next DoublyLinkedList will be set to this value, then next_id will be incremented.
@@ -195,18 +236,18 @@ class DoublyLinkedList<T> {
     }
   }
 
-  public DLLNode<T> Head() {
+  public synchronized DLLNode<T> Head() {
     return head;
   }
 
-  public DLLNode<T> Tail() {
+  public synchronized DLLNode<T> Tail() {
     return tail;
   }
 
   /**
    * Create a node for val and insert it on the tail of the DLL.
    */
-  public void Insert(T val) {
+  public synchronized void Insert(T val) {
     if (head == null && tail == null) {
       head = new DLLNode(null, null, val, id);
       tail = head;
@@ -223,7 +264,7 @@ class DoublyLinkedList<T> {
   /**
    * Delete a given node from the DLL.
    */
-  public void Delete(DLLNode<T> toDelete) {
+  public synchronized void Delete(DLLNode<T> toDelete) {
     assert (toDelete.GetID() == id);
     def toDeletePrev = toDelete.GetPrev();
     def toDeleteNext = toDelete.GetNext();
@@ -248,7 +289,7 @@ class DoublyLinkedList<T> {
   /**
    * Move a node in the DLL to the head of the list.
    */
-  public void MoveToHead(DLLNode<T> node) {
+  public synchronized void MoveToHead(DLLNode<T> node) {
     assert (node.GetID() == id);
     if (head == node) {
       return
@@ -263,7 +304,7 @@ class DoublyLinkedList<T> {
   /**
    * Insert a value at the head of the list.
    */
-  public void InsertHead(T val) {
+  public synchronized void InsertHead(T val) {
     Insert(val);
     MoveToHead(tail);
   }
@@ -271,11 +312,22 @@ class DoublyLinkedList<T> {
   /**
    * The current size of the DLL.
    */
-  public int Size() {
+  public synchronized int Size() {
     return size;
   }
 
-  public int GetID() {
+  public synchronized int GetID() {
     return id;
+  }
+
+  /**
+   * Call closure c with each node as the input argument, starting from the head.
+   */
+  public synchronized void walk(Closure c) {
+    def node = head;
+    while (node != null) {
+      c(node);
+      node = node.GetNext();
+    }
   }
 }
