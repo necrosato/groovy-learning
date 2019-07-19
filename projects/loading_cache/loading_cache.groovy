@@ -1,6 +1,7 @@
 import doubly_linked_list.DoublyLinkedList;
 import doubly_linked_list.DLLNode;
-
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class LoadingCacheTest {
   static void main(String[] args) {
@@ -29,21 +30,37 @@ class LoadingCacheTest {
   }
 
   static void TestLoadingCacheWorksConcurrent() {
-    def cache = new LoadingCache<Integer,Integer>(new LeastRecentlyUsed<Integer,Integer>(2));
-    for (int i = 0; i < 4; i++) {
-      cache.set(i, this.&compute_delayed, [i, 1000]);
+    def cache = new LoadingCache<Integer,Integer>(new LeastRecentlyUsed<Integer,Integer>(4));
+    def es = Executors.newCachedThreadPool();
+    int nkeys = 8;
+    for (int i = 0; i < nkeys; i++) {
+      cache.set(i, this.&compute_delayed, [i, 100]);
     }
-    for (int i = 0; i < 4; i++) {
-      // Cannot use i because the value is not captured until the function runs, as opposed to when the thread is created.
-      // This way we force cache.get(ic) to get the value of ic when the loop iterates, not the value of i when the thread executes (which may be after loop termination).
-      int ic = i;
-      def t = new Thread() {
-        @Override
-        public void run() {
-          println(cache.get(ic));
-        }
+    def result_map = [:];
+    for (int i = 0; i < nkeys; i++) {
+      result_map[i] = 0;
+    }
+    int niters = 100;
+    for (int j = 0; j < niters; j++) {
+      for (int i = 0; i < nkeys; i++) {
+        // Cannot use i because the value is not captured until the function runs, as opposed to when the thread is created.
+        // This way we force cache.get(ic) to get the value of ic when the loop iterates, not the value of i when the thread executes (which may be after loop termination).
+        int ic = i;
+        es.execute(new Runnable() {
+          @Override
+          public void run() {
+            def val = cache.get(ic);
+            synchronized(result_map) {
+              result_map[val]++;
+            }
+          }
+        });
       }
-      t.start();
+    }
+    es.shutdown();
+    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
+    for (int i = 0; i < nkeys; i++) {
+      assert(result_map[i] == niters);
     }
   }
 
@@ -84,10 +101,10 @@ abstract class EvictionPolicy<T,U> {
   abstract protected void unload();
   
   /**
-   * abstract method to start the computation for a load if a computation is not already started and the value is not loaded.
+   * protected method to compute and return the value for key
    * This should be thread safe.
    */
-  abstract protected void compute_load(T key);
+  abstract protected T compute_load(T key);
 
   /**
    * Method to load a value for key. Value is only computed if not already in memory.
@@ -114,28 +131,33 @@ class LeastRecentlyUsed<T,U> extends EvictionPolicy<T,U> {
     this.size = size;
   }
 
-  /**
-   * protected method to remove cached objects from the tail of the dll until the dll is <= size.
-   */
-  protected synchronized void unload() {
-    while (dll.Size() > size) {
-      node_map.remove(dll.Tail().GetVal()[0]);
-      dll.Delete(dll.Tail());
+  protected void unload() {
+    synchronized (dll) {
+      while (dll.Size() > size) {
+        def key = dll.Tail().GetVal()[0];
+        synchronized (compute_map[key]) {
+          node_map.remove(key);
+          dll.Delete(dll.Tail());
+        }
+      }
     }
   }
 
-  /**
-   * protected method to start the computation for a load in a new thread.
-   */
-  protected void compute_load(T key) {
-    if (!this.node_map.containsKey(key)) {
-      def val = compute_map[key](*params_map[key]);
-      dll.InsertHead(new Tuple<T,U>(key, val));
-      node_map[key] = dll.Head();
-      unload();
-      assert(node_map[key] != null);
-      assert(dll.Size() <= size);
-    }
+  protected T compute_load(T key) {
+    T val;
+    //synchronized (node_map) {
+      assert(compute_map.containsKey(key));
+      synchronized (compute_map[key]) {
+        if (!this.node_map.containsKey(key)) {
+          val = compute_map[key](*params_map[key]);
+          node_map[key] = dll.InsertHead(new Tuple<T,U>(key, val));
+          assert(node_map[key] != null);
+        } else {
+          val = node_map[key].GetVal()[1];
+        }
+      }
+    //}
+    return val;
   }
 
   /**
@@ -144,12 +166,10 @@ class LeastRecentlyUsed<T,U> extends EvictionPolicy<T,U> {
    * Note that this means that even though load(key1) was called before load(key2),
    * the value for key1 may be the most recently used if its computation finishes after the computation for key2.
    */
-  public synchronized U load(T key) {
-    compute_load(key);
-    assert(node_map.containsKey(key));
-    assert(node_map[key] != null);
-    assert(node_map.size() <= size);
-    return node_map[key].GetVal()[1];
+  public U load(T key) {
+    def val = compute_load(key);
+    unload();
+    return val;
   }
 }
 

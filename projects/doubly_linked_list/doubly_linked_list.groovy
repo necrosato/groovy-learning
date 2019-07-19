@@ -303,11 +303,12 @@ class DoublyLinkedList<T> {
   }
 
   /**
-   * Insert a value at the head of the list.
+   * Insert a value at the head of the list. Return reference to node.
    */
-  public synchronized void InsertHead(T val) {
+  public synchronized DLLNode<T> InsertHead(T val) {
     Insert(val);
     MoveToHead(tail);
+    return head;
   }
 
   /**
