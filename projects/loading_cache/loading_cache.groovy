@@ -148,8 +148,8 @@ abstract class EvictionPolicy<T,U> {
  */
 class LeastRecentlyUsed<T,U> extends EvictionPolicy<T,U> {
   private int size;
-  private Map<T,DLLNode<Tuple<T,U>>> node_map = Collections.synchronizedMap([:]);
-  private DoublyLinkedList<Tuple<T,U>> dll = new DoublyLinkedList<Tuple<T,U>>();
+  private Map<T,DLLNode<Tuple>> node_map = Collections.synchronizedMap([:]);
+  private DoublyLinkedList<Tuple> dll = new DoublyLinkedList<Tuple>();
 
   /**
    * Constructor
@@ -180,7 +180,7 @@ class LeastRecentlyUsed<T,U> extends EvictionPolicy<T,U> {
     synchronized (compute_map[key]) {
       if (!this.node_map.containsKey(key)) {
         val = compute_map[key](*params_map[key]);
-        node_map[key] = dll.InsertHead(new Tuple<T,U>(key, val));
+        node_map[key] = dll.InsertHead(new Tuple(key, val));
         assert(node_map[key] != null);
       } else {
         val = node_map[key].GetVal()[1];
