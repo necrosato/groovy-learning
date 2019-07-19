@@ -69,7 +69,7 @@ class LoadingCacheTest {
       }
     }
     es.shutdown();
-    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
+    assert(es.awaitTermination(10, TimeUnit.SECONDS));
     for (int i = 0; i < nkeys; i++) {
       assert(result_map[i] == niters);
     }

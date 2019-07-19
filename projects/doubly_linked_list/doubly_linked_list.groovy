@@ -109,17 +109,17 @@ class DLLTest {
       es.execute(new Runnable() { @Override
                                   public void run() {
                                     def dll = new DoublyLinkedList<Integer>();
-                                    assert(id_set.add(dll.GetID()) == true);
+                                    assert(id_set.add(dll.GetID()));
                                   }});
     }
     es.shutdown();
-    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
+    assert(es.awaitTermination(10, TimeUnit.SECONDS));
   }
 
   public static void TestConcurrentDLLInsert() {
     def es = Executors.newCachedThreadPool();
     def val_set = new HashSet<Integer>();
-    def c = { node -> assert(val_set.add(node.GetVal()) == true); };
+    def c = { node -> assert(val_set.add(node.GetVal())); };
     def dll = new DoublyLinkedList<Integer>();
     for (int i = 0; i < 8; i++) {
       es.execute(new Runnable() { @Override
@@ -128,7 +128,7 @@ class DLLTest {
                                   }});
     }
     es.shutdown();
-    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
+    assert(es.awaitTermination(10, TimeUnit.SECONDS));
     assert(dll.Size() == 8);
     dll.walk(c);
   }
@@ -136,7 +136,7 @@ class DLLTest {
   public static void TestConcurrentDLLDelete() {
     def es = Executors.newCachedThreadPool();
     def val_set = new HashSet<Integer>();
-    def c = { node -> assert(val_set.add(node.GetVal()) == true); };
+    def c = { node -> assert(val_set.add(node.GetVal())); };
     def dll = new DoublyLinkedList<Integer>();
     for (int i = 0; i < 8; i++) {
       dll.Insert(i);
@@ -148,7 +148,7 @@ class DLLTest {
                                   }});
     }
     es.shutdown();
-    assert(es.awaitTermination(10, TimeUnit.SECONDS) == true);
+    assert(es.awaitTermination(10, TimeUnit.SECONDS));
     assert(dll.Size() == 0);
   }
 }
