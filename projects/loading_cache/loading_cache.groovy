@@ -10,37 +10,48 @@ class LoadingCacheTest {
   }
 
   static void TestLoadingCacheWorks() {
-    def cache = new LoadingCache<String,Integer>(new LeastRecentlyUsed<String,Integer>(3));
-    cache.set("test1", this.&compute, [1]);
-    cache.set("test2", this.&compute, [2]);
-    cache.set("test3", this.&compute, [3]);
-    cache.set("test4", this.&compute, [4]);
+    def cache_size = 3;
+    def cache = new LoadingCache<Integer,Integer>(new LeastRecentlyUsed<String,Integer>(cache_size));
+    def compute_counts = [:];
+    cache.set(1, this.&compute, [1, compute_counts]);
+    cache.set(2, this.&compute, [2, compute_counts]);
+    cache.set(3, this.&compute, [3, compute_counts]);
+    cache.set(4, this.&compute, [4, compute_counts]);
 
-    println(cache.get("test1"));
-    println(cache.get("test1"));
-    println(cache.get("test2"));
-    println(cache.get("test2"));
-    println(cache.get("test3"));
-    println(cache.get("test3"));
-    println(cache.get("test4"));
-    println(cache.get("test4"));
-    println(cache.get("test2"));
-    println(cache.get("test1"));
-    println(cache.get("test4"));
+    assert(cache.get(1) == 1);
+    assert(cache.get(1) == 1);
+    assert(cache.get(2) == 2);
+    assert(cache.get(2) == 2);
+    assert(cache.get(3) == 3);
+    assert(cache.get(3) == 3);
+    assert(cache.get(4) == 4);
+    assert(cache.get(4) == 4);
+    assert(cache.get(2) == 2);
+    assert(cache.get(1) == 1);
+    assert(cache.get(4) == 4);
+
+    assert(compute_counts[1] == 2)
+    assert(compute_counts[2] == 1)
+    assert(compute_counts[3] == 1)
+    assert(compute_counts[4] == 1)
+
+    assert(cache.CachedSize() <= cache_size);
   }
 
   static void TestLoadingCacheWorksConcurrent() {
-    def cache = new LoadingCache<Integer,Integer>(new LeastRecentlyUsed<Integer,Integer>(4));
+    def cache_size = 2;
+    def cache = new LoadingCache<Integer,Integer>(new LeastRecentlyUsed<Integer,Integer>(cache_size));
     def es = Executors.newCachedThreadPool();
+    def compute_counts = [:];
     int nkeys = 8;
     for (int i = 0; i < nkeys; i++) {
-      cache.set(i, this.&compute_delayed, [i, 100]);
+      cache.set(i, this.&compute_delayed, [i, 100, compute_counts]);
     }
     def result_map = [:];
     for (int i = 0; i < nkeys; i++) {
       result_map[i] = 0;
     }
-    int niters = 100;
+    int niters = 1000;
     for (int j = 0; j < niters; j++) {
       for (int i = 0; i < nkeys; i++) {
         // Cannot use i because the value is not captured until the function runs, as opposed to when the thread is created.
@@ -62,15 +73,28 @@ class LoadingCacheTest {
     for (int i = 0; i < nkeys; i++) {
       assert(result_map[i] == niters);
     }
+    assert(cache.CachedSize() <= cache_size);
   }
 
-  static int compute(int i) {
-    println("Computing ${i}");
+  static int compute(int i, Map<Integer,Integer> compute_counts) {
+    synchronized(compute_counts) {
+      if (!compute_counts.containsKey(i)) {
+        compute_counts[i] = 1;
+      } else {
+        compute_counts[i]++;
+      }
+    }
     return i;
   }
 
-  static int compute_delayed(int i, int ms) {
-    println("Computing ${i} with ${ms} millisecond delay");
+  static int compute_delayed(int i, int ms, Map<Integer,Integer> compute_counts) {
+    synchronized(compute_counts) {
+      if (!compute_counts.containsKey(i)) {
+        compute_counts[i] = 1;
+      } else {
+        compute_counts[i]++;
+      }
+    }
     Thread.sleep(ms);
     return i;
   }
@@ -101,7 +125,7 @@ abstract class EvictionPolicy<T,U> {
   abstract protected void unload();
   
   /**
-   * protected method to compute and return the value for key
+   * protected method to compute and return the value for key.
    * This should be thread safe.
    */
   abstract protected T compute_load(T key);
@@ -111,6 +135,11 @@ abstract class EvictionPolicy<T,U> {
    * This should be thread safe.
    */
   abstract public U load(T key);
+
+  /**
+   * Return the number of currently cached values.
+   */
+  abstract public int CachedSize();
 }
 
 /**
@@ -132,9 +161,11 @@ class LeastRecentlyUsed<T,U> extends EvictionPolicy<T,U> {
   }
 
   protected void unload() {
+    // Lock the dll so that compute_load cannot insert while this is deleting
     synchronized (dll) {
       while (dll.Size() > size) {
         def key = dll.Tail().GetVal()[0];
+        // Wait for computations to finish so that compute_load dose not attempt to use null values
         synchronized (compute_map[key]) {
           node_map.remove(key);
           dll.Delete(dll.Tail());
@@ -145,18 +176,16 @@ class LeastRecentlyUsed<T,U> extends EvictionPolicy<T,U> {
 
   protected T compute_load(T key) {
     T val;
-    //synchronized (node_map) {
-      assert(compute_map.containsKey(key));
-      synchronized (compute_map[key]) {
-        if (!this.node_map.containsKey(key)) {
-          val = compute_map[key](*params_map[key]);
-          node_map[key] = dll.InsertHead(new Tuple<T,U>(key, val));
-          assert(node_map[key] != null);
-        } else {
-          val = node_map[key].GetVal()[1];
-        }
+    assert(compute_map.containsKey(key));
+    synchronized (compute_map[key]) {
+      if (!this.node_map.containsKey(key)) {
+        val = compute_map[key](*params_map[key]);
+        node_map[key] = dll.InsertHead(new Tuple<T,U>(key, val));
+        assert(node_map[key] != null);
+      } else {
+        val = node_map[key].GetVal()[1];
       }
-    //}
+    }
     return val;
   }
 
@@ -170,6 +199,10 @@ class LeastRecentlyUsed<T,U> extends EvictionPolicy<T,U> {
     def val = compute_load(key);
     unload();
     return val;
+  }
+
+  public int CachedSize() {
+    return dll.Size();
   }
 }
 
@@ -190,6 +223,10 @@ public class LoadingCache<T,U> {
 
   public U get(T key) {
     return ep.load(key);
+  }
+
+  public int CachedSize() {
+    return ep.CachedSize();
   }
 }
 
