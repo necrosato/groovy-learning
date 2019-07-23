@@ -1,46 +1,70 @@
 package synchronization;
-import synchronization.Producer;
-import synchronization.Consumer;
+import synchronization.ProducerGroup;
+import synchronization.ConsumerGroup;
 
 class SynchronizationTest {
 
   public static void main(String[] args) {
-    ProducerSingleConsumerWorks();
-    ProducerMultiConsumerWorks();
+    SingleProducerSingleConsumerWorks();
+    SingleProducerMultiConsumerWorks();
+    MultiProducerSingleConsumerWorks();
+    MultiProducerMultiConsumerWorks();
   }
 
-  public static ProducerSingleConsumerWorks() {
+  public static SingleProducerSingleConsumerWorks() {
     to_produce_delayed = 0;
-    def producer = new Producer<Integer>(this.&ProduceIntDelayed, [10], 100);
-    def consumed = [];
-    def consumer = new Consumer(producer, consumed);
+    def producer = new ProducerGroup<Integer>(this.&ProduceIntDelayed, [0], 100, 1);
+    def consumer = new ConsumerGroup(producer, 1);
     producer.start();
     consumer.start();
     producer.join();
     consumer.join();
 
-    assert (consumed == 0..99);
+    assert (producer.Produced().size() == 0);
+    assert (consumer.Consumed() == 0..99);
   }
 
-  public static ProducerMultiConsumerWorks() {
+  public static SingleProducerMultiConsumerWorks() {
     to_produce_delayed = 0;
-    def producer = new Producer<Integer>(this.&ProduceIntDelayed, [10], 100);
-    def consumed = [];
-    def consumer1 = new Consumer(producer, consumed);
-    def consumer2 = new Consumer(producer, consumed);
+    def producer = new ProducerGroup<Integer>(this.&ProduceIntDelayed, [0], 100, 1);
+    def consumers = new ConsumerGroup(producer, 4);
     producer.start();
-    consumer1.start();
-    consumer2.start();
+    consumers.start();
     producer.join();
-    consumer1.join();
-    consumer2.join();
+    consumers.join();
 
-    assert (consumed == 0..99);
+    assert (consumers.Consumed() == 0..99);
+  }
+
+  public static MultiProducerSingleConsumerWorks() {
+    to_produce_delayed = 0;
+    def producers = new ProducerGroup<Integer>(this.&ProduceIntDelayed, [10], 100, 16);
+    def consumer = new ConsumerGroup(producers, 1);
+    producers.start();
+    consumer.start();
+    producers.join();
+    consumer.join();
+
+    assert (consumer.Consumed() == 0..99);
+  }
+
+  public static MultiProducerMultiConsumerWorks() {
+    to_produce_delayed = 0;
+    def producers = new ProducerGroup<Integer>(this.&ProduceIntDelayed, [10], 100, 16);
+    def consumers = new ConsumerGroup(producers, 4);
+    producers.start();
+    consumers.start();
+    producers.join();
+    consumers.join();
+
+    assert (consumers.Consumed() == 0..99);
   }
 
   private static int to_produce_delayed = 0;
   public static ProduceIntDelayed(int ms) {
     Thread.currentThread().sleep(ms);
-    return to_produce_delayed++;
+    synchronized (to_produce_delayed) {
+      return to_produce_delayed++;
+    }
   }
 }

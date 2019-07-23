@@ -1,11 +1,40 @@
 package synchronization;
 import synchronization.Consumer;
 
-class Consumer extends Thread {
-  private Producer p; 
+class ConsumerGroup {
+  private List<Consumer> consumers;
   private List consumed;
 
-  Consumer(Producer p, List consumed) {
+  ConsumerGroup(ProducerGroup p, int num_consumers) {
+    this.consumed = [];
+    this.consumers = [];
+    for (int i : num_consumers) {
+      consumers.add(new Consumer(p, consumed));
+    }
+  }
+
+  public List Consumed() {
+    return consumed;
+  }
+
+  public void start() {
+    for (Consumer consumer : consumers) {
+      consumer.start();
+    }
+  }
+
+  public void join() {
+    for (Consumer consumer : consumers) {
+      consumer.join();
+    }
+  }
+}
+
+class Consumer extends Thread {
+  private ProducerGroup p; 
+  private List consumed;
+
+  Consumer(ProducerGroup p, List consumed) {
     this.p = p;
     this.consumed = consumed;
   }
@@ -16,12 +45,12 @@ class Consumer extends Thread {
 
   @Override
   public void run() {
-    synchronized(p) {
+    synchronized(p.Produced()) {
       while (p.Producing() || p.Ready()) {
         if (p.Ready()) {
           consumed.add(p.Next());
         } else {
-          p.wait();
+          p.Produced().wait();
         }
       }
     }
