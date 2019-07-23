@@ -1,6 +1,9 @@
 package synchronization;
-import synchronization.Consumer;
 
+/**
+ * A group of consumers that consumes from a ProducerGroup.
+ * All consumers in the group consume concurrently.
+ */
 class ConsumerGroup {
   private List<Consumer> consumers;
   private List consumed;
@@ -30,6 +33,9 @@ class ConsumerGroup {
   }
 }
 
+/**
+ * A single consumer on a single thread.
+ */
 class Consumer extends Thread {
   private ProducerGroup p; 
   private List consumed;

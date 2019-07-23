@@ -1,6 +1,5 @@
 package synchronization;
-import synchronization.ProducerGroup;
-import synchronization.ConsumerGroup;
+import synchronization.*;
 
 class SynchronizationTest {
 
