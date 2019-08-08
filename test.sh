@@ -29,4 +29,4 @@ if [[ ! -d "$SCRIPTPATH/projects/$PROJECT/" ]]; then
   exit 1
 fi
 
-groovy -cp "$SCRIPTPATH/bin/" "$SCRIPTPATH"/projects/"$PROJECT/${PROJECT}_test.groovy"
+groovy -cp "$SCRIPTPATH/bin/:$SCRIPTPATH/third_party/*" "$SCRIPTPATH"/projects/"$PROJECT/${PROJECT}_test.groovy"

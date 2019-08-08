@@ -41,7 +41,6 @@ class ActiveMQTest {
         System.out.println("Producer Sent: " + msg);
         producer.send(message);
 
-        Thread.sleep(10000);
         session.close();
         connection.close();
       }};
@@ -72,7 +71,6 @@ class ActiveMQTest {
             System.out.println("Consumer Received: " + text);
         }
 
-        Thread.sleep(10000);
         session.close();
         connection.close();
       }};

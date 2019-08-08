@@ -3,4 +3,4 @@
 SCRIPTPATH="$(cd "$(dirname "$0")"; pwd -P)"
 
 mkdir -p "$SCRIPTPATH/bin/"
-groovyc -d "$SCRIPTPATH/bin/" "$SCRIPTPATH"/projects/*/*.groovy
+groovyc -cp "$SCRIPTPATH/third_party/*" -d "$SCRIPTPATH/bin/" "$SCRIPTPATH"/projects/*/*.groovy
